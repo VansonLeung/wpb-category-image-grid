@@ -246,7 +246,8 @@ class WPBakery_Category_Image_Grid extends WPBakeryShortCode {
              data-gap-size="<?php echo esc_attr($gap_size); ?>"
              data-pagination-type="<?php echo esc_attr($pagination_type); ?>"
              data-posts-per-page="<?php echo esc_attr($posts_per_page); ?>"
-             data-view-more-text="<?php echo esc_attr($view_more_text); ?>">
+               data-view-more-text="<?php echo esc_attr($view_more_text); ?>"
+               data-end-message="<?php echo esc_attr__('No more posts to load.', 'wpb-category-image-grid'); ?>">
 
             <!-- Category Toolbar -->
             <div class="wpb-cig-toolbar">
@@ -277,19 +278,27 @@ class WPBakery_Category_Image_Grid extends WPBakeryShortCode {
                 <!-- Pagination -->
                 <div class="wpb-cig-pagination" style="display: none;">
                     <button class="wpb-cig-load-more" style="display: none;">
-                        Load More</button>
+                        <?php esc_html_e('Load More', 'wpb-category-image-grid'); ?></button>
                     <div class="wpb-cig-page-numbers"></div>
+                    <div class="wpb-cig-end-message" style="display: none;"></div>
+                    <div class="wpb-cig-scroll-sentinel" aria-hidden="true"></div>
                 </div>
             </div>
         </div>
 
         <script type="text/javascript">
             // Initialize the grid when DOM is ready
-            document.addEventListener('DOMContentLoaded', function() {
+            const initializeWpbCategoryImageGrid = function() {
                 if (typeof WPB_CategoryImageGrid !== 'undefined') {
                     new WPB_CategoryImageGrid('<?php echo esc_attr($grid_id); ?>');
                 }
-            });
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializeWpbCategoryImageGrid);
+            } else {
+                initializeWpbCategoryImageGrid();
+            }
         </script>
         <?php
         return ob_get_clean();

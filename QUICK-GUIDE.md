@@ -30,8 +30,8 @@ The Category Image Grid element displays posts from a single post type with cate
 ### Pagination Options
 - **Load All**: Display all posts at once
 - **Load Top N**: Show only first N posts
-- **Lazy Loading**: Load N posts + "Load More" button
-- **Pagination**: Traditional page numbers
+- **Lazy Loading**: Load N posts, then continue with automatic infinite scroll
+- **Pagination**: Traditional AJAX page numbers
 
 ### Hover Effects
 - Scale and shadow animation on hover
@@ -81,6 +81,10 @@ When Polylang is active:
 - Ensure the post type has published posts
 - Check if posts have featured images
 - Verify browser console for JavaScript errors
+
+**Infinite scroll does not trigger?**
+- Check whether the browser supports `IntersectionObserver`
+- The plugin falls back to the `Load More` button when it does not
 
 **Styling issues?**
 - Clear browser cache

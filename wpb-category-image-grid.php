@@ -71,7 +71,11 @@ class WPB_Category_Image_Grid {
         // Localize script for AJAX
         wp_localize_script('wpb-cig-script', 'wpbCigAjax', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('wpb_cig_nonce')
+            'nonce' => wp_create_nonce('wpb_cig_nonce'),
+            'strings' => array(
+                'error' => __('Error loading posts. Please try again.', 'wpb-category-image-grid'),
+                'noPosts' => __('No posts found.', 'wpb-category-image-grid'),
+            ),
         ));
     }
 
@@ -80,17 +84,16 @@ class WPB_Category_Image_Grid {
      */
     public function ajax_load_posts() {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'wpb_cig_nonce')) {
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'wpb_cig_nonce')) {
             wp_die('Security check failed');
         }
 
-        $post_type = sanitize_text_field($_POST['post_type']);
-        $category = sanitize_text_field($_POST['category']);
-        $posts_per_page = intval($_POST['posts_per_page']);
-        $page = intval($_POST['page']);
-        $pagination_type = sanitize_text_field($_POST['pagination_type']);
-        $gap_size = sanitize_text_field($_POST['gap_size']);
-        $view_more_text = sanitize_text_field($_POST['view_more_text']);
+        $post_type = isset($_POST['post_type']) ? sanitize_text_field(wp_unslash($_POST['post_type'])) : 'post';
+        $category = isset($_POST['category']) ? sanitize_text_field(wp_unslash($_POST['category'])) : 'all';
+        $posts_per_page = isset($_POST['posts_per_page']) ? max(1, intval($_POST['posts_per_page'])) : 9;
+        $page = isset($_POST['page']) ? max(1, intval($_POST['page'])) : 1;
+        $pagination_type = isset($_POST['pagination_type']) ? sanitize_text_field(wp_unslash($_POST['pagination_type'])) : 'load_top_n';
 
         // Build query args
         $args = array(
@@ -136,7 +139,7 @@ class WPB_Category_Image_Grid {
                 $image_url = '';
                 $image_full_url = '';
                 if (has_post_thumbnail()) {
-                    $image_data = wp_get_attachment_image_src(get_post_thumbnail_id(), 'medium');
+                    $image_data = wp_get_attachment_image_src(get_post_thumbnail_id(), 'large');
                     $image_url = $image_data ? $image_data[0] : '';
                     $image_full_data = wp_get_attachment_image_src(get_post_thumbnail_id(), 'full');
                     $image_full_url = $image_full_data ? $image_full_data[0] : $image_url;
@@ -156,11 +159,14 @@ class WPB_Category_Image_Grid {
 
         wp_reset_postdata();
 
+        $has_more = $query->max_num_pages > $page;
+
         wp_send_json_success(array(
             'posts' => $posts_data,
             'total_pages' => $query->max_num_pages,
             'current_page' => $page,
-            'total_posts' => $query->found_posts
+            'total_posts' => $query->found_posts,
+            'has_more' => $has_more
         ));
     }
 

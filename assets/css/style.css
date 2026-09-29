@@ -208,6 +208,7 @@
     align-items: center;
     gap: 5px;
     margin-top: 20px;
+    flex-wrap: wrap;
 }
 
 .wpb-cig-page-number {
@@ -230,6 +231,32 @@
 .wpb-cig-page-number.disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.wpb-cig-page-dots {
+    color: #999;
+    padding: 0 4px;
+}
+
+.wpb-cig-end-message,
+.wpb-cig-empty,
+.wpb-cig-error {
+    margin-top: 16px;
+    color: #666;
+    font-size: 14px;
+    text-align: center;
+}
+
+.wpb-cig-empty,
+.wpb-cig-error {
+    background: #f8f8f8;
+    border-radius: 8px;
+    padding: 24px 16px;
+}
+
+.wpb-cig-scroll-sentinel {
+    width: 100%;
+    height: 1px;
 }
 
 /* Animations */

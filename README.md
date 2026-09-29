@@ -12,7 +12,7 @@ A dynamic and flexible category image grid element for WPBakery Page Builder wit
 - ✅ **Multiple Pagination Types**:
   - Load all posts at once
   - Load top N posts only
-  - Lazy loading (load N + load more on scroll/demand)
+   - Lazy loading (load N + automatic infinite scroll, with load-more fallback)
   - Traditional pagination with page numbers
 - ✅ **Smooth Animations** - Fade in/out transitions when changing categories
 - ✅ **Customizable Gaps** - Set custom spacing between grid items
@@ -57,8 +57,8 @@ A dynamic and flexible category image grid element for WPBakery Page Builder wit
    - **Pagination Type**: Choose how posts are loaded:
      - Load All Posts: Shows all posts at once
      - Load Top N Only: Shows only the first N posts
-     - Load N + Lazy Loading: Shows N posts + "Load More" button
-     - Load N per Page + Pagination: Shows N posts per page with page numbers
+   - Load N + Lazy Loading: Shows N posts, then auto-loads more when the visitor reaches the end of the grid
+   - Load N per Page + Pagination: Shows N posts per page with AJAX page numbers
    - **Posts Per Page**: Number of posts for pagination types
    - **View More Button Text**: Customize the hover button text
 
@@ -73,6 +73,12 @@ When a category is selected:
 - New posts are loaded via AJAX
 - The grid fades back in with staggered item animations
 - Pagination is updated based on the new category filter
+
+### Loading Modes
+
+- **Lazy Loading** uses infinite scroll via `IntersectionObserver` when supported by the browser.
+- **Fallback Behavior** uses the existing `Load More` button if automatic infinite scroll is not available.
+- **Pagination** keeps page switches inside the current page via AJAX and does not update the browser URL.
 
 ### Hover Effects
 

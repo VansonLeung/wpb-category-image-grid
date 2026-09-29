@@ -19,8 +19,9 @@
             this.pagination = this.container.querySelector('.wpb-cig-pagination');
             this.loadMoreBtn = this.container.querySelector('.wpb-cig-load-more');
             this.pageNumbers = this.container.querySelector('.wpb-cig-page-numbers');
+            this.endMessage = this.container.querySelector('.wpb-cig-end-message');
+            this.scrollSentinel = this.container.querySelector('.wpb-cig-scroll-sentinel');
 
-            // Configuration
             this.postType = this.container.dataset.postType;
             this.category = this.container.dataset.category;
             this.columns = parseInt(this.container.dataset.columns);
@@ -28,45 +29,97 @@
             this.paginationType = this.container.dataset.paginationType;
             this.postsPerPage = parseInt(this.container.dataset.postsPerPage);
             this.viewMoreText = this.container.dataset.viewMoreText;
+            this.endMessageText = this.container.dataset.endMessage || 'No more posts to load.';
+            this.errorText = (window.wpbCigAjax && window.wpbCigAjax.strings && window.wpbCigAjax.strings.error) || 'Error loading posts. Please try again.';
+            this.noPostsText = (window.wpbCigAjax && window.wpbCigAjax.strings && window.wpbCigAjax.strings.noPosts) || 'No posts found.';
+            this.supportsIntersectionObserver = 'IntersectionObserver' in window;
 
-            // State
             this.currentPage = 1;
+            this.totalPages = 1;
+            this.hasMore = false;
             this.isLoading = false;
             this.allPostsLoaded = false;
             this.currentPosts = [];
+            this.observer = null;
 
             this.init();
         }
 
         init() {
             this.bindEvents();
+            this.setupInfiniteScroll();
             this.loadPosts(true);
         }
 
         bindEvents() {
-            const self = this;
-
-            // Category selector
             const categoryBtns = this.container.querySelectorAll('.wpb-cig-category-btn');
             categoryBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const newCategory = this.dataset.category;
-                    if (newCategory !== self.category) {
-                        self.changeCategory(newCategory);
+                btn.addEventListener('click', () => {
+                    const newCategory = btn.dataset.category;
+                    if (newCategory !== this.category) {
+                        this.changeCategory(newCategory);
                     }
                 });
             });
 
-            // Load more button
             if (this.loadMoreBtn) {
-                this.loadMoreBtn.addEventListener('click', function() {
-                    self.loadMorePosts();
+                this.loadMoreBtn.addEventListener('click', () => {
+                    this.loadMorePosts();
                 });
             }
         }
 
+        setupInfiniteScroll() {
+            if (!this.scrollSentinel || !this.supportsIntersectionObserver) {
+                return;
+            }
+
+            this.observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && this.paginationType === 'lazy_loading') {
+                        this.loadMorePosts();
+                    }
+                });
+            }, {
+                root: null,
+                rootMargin: '200px 0px',
+                threshold: 0.1,
+            });
+
+            this.observer.observe(this.scrollSentinel);
+        }
+
+        refreshInfiniteScrollObserver() {
+            if (!this.observer || !this.scrollSentinel) {
+                return;
+            }
+
+            this.observer.unobserve(this.scrollSentinel);
+
+            window.requestAnimationFrame(() => {
+                if (!this.scrollSentinel) {
+                    return;
+                }
+
+                this.observer.observe(this.scrollSentinel);
+                this.maybeLoadMoreIfVisible();
+            });
+        }
+
+        maybeLoadMoreIfVisible() {
+            if (!this.scrollSentinel || !this.hasMore || this.isLoading || this.paginationType !== 'lazy_loading') {
+                return;
+            }
+
+            const sentinelRect = this.scrollSentinel.getBoundingClientRect();
+            const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+            if (sentinelRect.top <= viewportHeight + 200) {
+                this.loadMorePosts();
+            }
+        }
+
         changeCategory(newCategory) {
-            // Update active button
             const categoryBtns = this.container.querySelectorAll('.wpb-cig-category-btn');
             categoryBtns.forEach(btn => {
                 btn.classList.remove('active');
@@ -75,25 +128,38 @@
                 }
             });
 
-            // Animate out current grid
             this.grid.classList.add('fade-out');
+            this.allPostsLoaded = true;
+            this.hasMore = false;
 
             setTimeout(() => {
                 this.category = newCategory;
-                this.currentPage = 1;
-                this.allPostsLoaded = false;
-                this.currentPosts = [];
+                this.resetState();
                 this.loadPosts(true);
             }, 300);
         }
 
+        resetState() {
+            this.currentPage = 1;
+            this.totalPages = 1;
+            this.hasMore = false;
+            this.allPostsLoaded = false;
+            this.currentPosts = [];
+            this.hideEndMessage();
+            this.hidePaginationControls();
+        }
+
         loadPosts(isInitial = false) {
-            if (this.isLoading) return;
+            if (this.isLoading) {
+                return;
+            }
 
             this.isLoading = true;
             this.showLoading();
+            if (this.loadMoreBtn) {
+                this.loadMoreBtn.disabled = true;
+            }
 
-            const self = this;
             const data = {
                 action: 'wpb_cig_load_posts',
                 nonce: wpbCigAjax.nonce,
@@ -114,59 +180,66 @@
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    self.handlePostsLoaded(result.data, isInitial);
+                    this.handlePostsLoaded(result.data, isInitial);
                 } else {
                     console.error('Failed to load posts:', result.data);
-                    self.showError();
+                    this.showError();
                 }
             })
             .catch(error => {
                 console.error('AJAX error:', error);
-                self.showError();
+                this.showError();
             })
             .finally(() => {
-                self.isLoading = false;
+                this.isLoading = false;
+                if (this.loadMoreBtn) {
+                    this.loadMoreBtn.disabled = false;
+                }
+                this.hideLoading();
             });
         }
 
         handlePostsLoaded(data, isInitial) {
             const posts = data.posts;
+            this.currentPage = data.current_page;
+            this.totalPages = data.total_pages;
+            this.hasMore = Boolean(data.has_more);
+            this.allPostsLoaded = !this.hasMore;
 
-            if (isInitial) {
+            if (isInitial || this.paginationType === 'pagination') {
                 this.currentPosts = posts;
                 this.renderGrid(posts);
             } else {
-                // For lazy loading, append posts
                 this.currentPosts = this.currentPosts.concat(posts);
                 this.appendPosts(posts);
             }
 
             this.updatePagination(data);
 
-            // Check if all posts loaded
-            if (this.paginationType === 'lazy_loading' && data.current_page >= data.total_pages) {
-                this.allPostsLoaded = true;
+            if (this.paginationType === 'lazy_loading' && this.supportsIntersectionObserver) {
+                this.refreshInfiniteScrollObserver();
             }
         }
 
         renderGrid(posts) {
-            this.hideLoading();
-
-            // Clear existing content
-            const existingItems = this.grid.querySelectorAll('.wpb-cig-item, .wpb-cig-error');
+            const existingItems = this.grid.querySelectorAll('.wpb-cig-item, .wpb-cig-error, .wpb-cig-empty');
             existingItems.forEach(item => item.remove());
 
-            // Render new posts
+            if (!posts.length) {
+                this.grid.innerHTML = `<div class="wpb-cig-empty">${this.escapeHtml(this.noPostsText)}</div>`;
+                this.grid.classList.remove('fade-out');
+                this.grid.classList.add('fade-in');
+                return;
+            }
+
             posts.forEach((post, index) => {
                 const itemHtml = this.createPostItem(post, index);
                 this.grid.insertAdjacentHTML('beforeend', itemHtml);
             });
 
-            // Animate in
             this.grid.classList.remove('fade-out');
             this.grid.classList.add('fade-in');
 
-            // Animate items
             setTimeout(() => {
                 const items = this.grid.querySelectorAll('.wpb-cig-item');
                 items.forEach((item, index) => {
@@ -181,25 +254,28 @@
             posts.forEach((post, index) => {
                 const itemHtml = this.createPostItem(post, this.currentPosts.length - posts.length + index);
                 this.grid.insertAdjacentHTML('beforeend', itemHtml);
+                const newItem = this.grid.lastElementChild;
 
-                // Animate new items
                 setTimeout(() => {
-                    const newItem = this.grid.lastElementChild;
-                    newItem.classList.add('animate-in');
+                    if (newItem) {
+                        newItem.classList.add('animate-in');
+                    }
                 }, index * 100);
             });
         }
 
         createPostItem(post, index) {
-            const imageStyle = post.image_url ? `background-image: url('${post.image_url}');` : '';
+            const title = this.escapeHtml(post.title || '');
+            const permalink = this.escapeAttribute(post.permalink || '#');
+            const imageUrl = this.escapeAttribute(post.image_url || '');
 
             return `
                 <div class="wpb-cig-item" data-post-id="${post.id}" data-index="${index}">
                     <div class="wpb-cig-item-inner">
-                        ${post.image_url ? `<img src="${post.image_url}" alt="${post.title}" />` : '<div class="wpb-cig-no-image">No Image</div>'}
+                        ${post.image_url ? `<img src="${imageUrl}" alt="${title}" loading="lazy" />` : '<div class="wpb-cig-no-image">No Image</div>'}
                         <div class="wpb-cig-overlay">
-                            <h3 class="wpb-cig-overlay-title">${post.title}</h3>
-                            <a href="${post.permalink}" class="wpb-cig-overlay-button" target="_blank">${this.viewMoreText}</a>
+                            <h3 class="wpb-cig-overlay-title">${title}</h3>
+                            <a href="${permalink}" class="wpb-cig-overlay-button">${this.escapeHtml(this.viewMoreText)}</a>
                         </div>
                     </div>
                 </div>
@@ -207,15 +283,40 @@
         }
 
         updatePagination(data) {
+            this.hidePaginationControls();
+
             if (this.paginationType === 'pagination') {
-                this.renderPageNumbers(data);
-                this.pagination.style.display = 'block';
-            } else if (this.paginationType === 'lazy_loading' && !this.allPostsLoaded) {
-                this.loadMoreBtn.style.display = 'block';
-                this.pagination.style.display = 'block';
-            } else {
+                if (data.total_pages > 1) {
+                    this.renderPageNumbers(data);
+                    this.pagination.style.display = 'block';
+                }
+                return;
+            }
+
+            if (this.paginationType === 'lazy_loading') {
+                if (this.hasMore) {
+                    this.pagination.style.display = 'block';
+                    if (!this.supportsIntersectionObserver) {
+                        this.loadMoreBtn.style.display = 'inline-block';
+                    }
+                } else if (this.currentPage > 1) {
+                    this.pagination.style.display = 'block';
+                    this.showEndMessage();
+                }
+            }
+        }
+
+        hidePaginationControls() {
+            if (this.pagination) {
                 this.pagination.style.display = 'none';
             }
+            if (this.loadMoreBtn) {
+                this.loadMoreBtn.style.display = 'none';
+            }
+            if (this.pageNumbers) {
+                this.pageNumbers.innerHTML = '';
+            }
+            this.hideEndMessage();
         }
 
         renderPageNumbers(data) {
@@ -224,10 +325,8 @@
 
             let html = '';
 
-            // Previous button
             html += `<button class="wpb-cig-page-number ${currentPage <= 1 ? 'disabled' : ''}" data-page="${currentPage - 1}">&laquo;</button>`;
 
-            // Page numbers
             for (let i = 1; i <= totalPages; i++) {
                 if (i === currentPage) {
                     html += `<button class="wpb-cig-page-number active" data-page="${i}">${i}</button>`;
@@ -238,19 +337,16 @@
                 }
             }
 
-            // Next button
             html += `<button class="wpb-cig-page-number ${currentPage >= totalPages ? 'disabled' : ''}" data-page="${currentPage + 1}">&raquo;</button>`;
 
             this.pageNumbers.innerHTML = html;
 
-            // Bind page number events
             const pageBtns = this.pageNumbers.querySelectorAll('.wpb-cig-page-number:not(.disabled)');
-            const self = this;
             pageBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const page = parseInt(this.dataset.page);
-                    if (page !== self.currentPage) {
-                        self.goToPage(page);
+                btn.addEventListener('click', () => {
+                    const page = parseInt(btn.dataset.page, 10);
+                    if (page !== this.currentPage) {
+                        this.goToPage(page);
                     }
                 });
             });
@@ -262,10 +358,26 @@
         }
 
         loadMorePosts() {
-            if (this.allPostsLoaded || this.isLoading) return;
+            if (this.allPostsLoaded || this.isLoading || this.paginationType !== 'lazy_loading') {
+                return;
+            }
 
             this.currentPage++;
             this.loadPosts(false);
+        }
+
+        showEndMessage() {
+            if (this.endMessage) {
+                this.endMessage.textContent = this.endMessageText;
+                this.endMessage.style.display = 'block';
+            }
+        }
+
+        hideEndMessage() {
+            if (this.endMessage) {
+                this.endMessage.textContent = '';
+                this.endMessage.style.display = 'none';
+            }
         }
 
         showLoading() {
@@ -281,14 +393,26 @@
         }
 
         showError() {
-            this.hideLoading();
+            this.hidePaginationControls();
             if (this.grid) {
-                this.grid.innerHTML = '<div class="wpb-cig-error">Error loading posts. Please try again.</div>';
+                this.grid.innerHTML = `<div class="wpb-cig-error">${this.escapeHtml(this.errorText)}</div>`;
             }
+        }
+
+        escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        escapeAttribute(value) {
+            return this.escapeHtml(value);
         }
     }
 
-    // Make it globally available
     window.WPB_CategoryImageGrid = WPB_CategoryImageGrid;
 
 })();
