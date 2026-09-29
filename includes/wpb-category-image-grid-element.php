@@ -91,6 +91,17 @@ class WPBakery_Category_Image_Grid extends WPBakeryShortCode {
                         'value' => array('load_top_n', 'lazy_loading', 'pagination'),
                     ),
                 ),
+                array(
+                    'type' => 'textfield',
+                    'heading' => __('End Message', 'wpb-category-image-grid'),
+                    'param_name' => 'end_message',
+                    'value' => __('No more posts to load.', 'wpb-category-image-grid'),
+                    'description' => __('Message shown after the last page is loaded in lazy loading mode.', 'wpb-category-image-grid'),
+                    'dependency' => array(
+                        'element' => 'pagination_type',
+                        'value' => array('lazy_loading'),
+                    ),
+                ),
 
                 // Hover Settings
                 array(
@@ -197,6 +208,7 @@ class WPBakery_Category_Image_Grid extends WPBakeryShortCode {
             'gap_size' => '15px',
             'pagination_type' => 'load_top_n',
             'posts_per_page' => '9',
+            'end_message' => __('No more posts to load.', 'wpb-category-image-grid'),
             'view_more_text' => 'View More',
             'all_categories_label' => '',
             'css' => '',
@@ -216,6 +228,7 @@ class WPBakery_Category_Image_Grid extends WPBakeryShortCode {
         // Get categories for this post type
         $categories = $this->get_categories_for_post_type($post_type);
         $category_options = array();
+        $end_message = '' !== ($end_message) ? $end_message : __('No more posts to load.', 'wpb-category-image-grid');
 
         // Add "All" option first
         $all_label = !empty($all_categories_label) ? $all_categories_label : sprintf(__('All %s', 'wpb-category-image-grid'), $post_type_label_plural);
@@ -247,7 +260,7 @@ class WPBakery_Category_Image_Grid extends WPBakeryShortCode {
              data-pagination-type="<?php echo esc_attr($pagination_type); ?>"
              data-posts-per-page="<?php echo esc_attr($posts_per_page); ?>"
                data-view-more-text="<?php echo esc_attr($view_more_text); ?>"
-               data-end-message="<?php echo esc_attr__('No more posts to load.', 'wpb-category-image-grid'); ?>">
+                             data-end-message="<?php echo esc_attr($end_message); ?>">
 
             <!-- Category Toolbar -->
             <div class="wpb-cig-toolbar">

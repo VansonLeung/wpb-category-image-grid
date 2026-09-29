@@ -1,5 +1,10 @@
 # WPBakery Category Image Grid - Changelog
 
+## [Unreleased]
+
+### Added
+- Configurable lazy-loading end message in the WPBakery element settings
+
 ## [1.0.0] - 2025-01-16
 
 ### Added

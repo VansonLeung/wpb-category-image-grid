@@ -60,6 +60,7 @@ A dynamic and flexible category image grid element for WPBakery Page Builder wit
    - Load N + Lazy Loading: Shows N posts, then auto-loads more when the visitor reaches the end of the grid
    - Load N per Page + Pagination: Shows N posts per page with AJAX page numbers
    - **Posts Per Page**: Number of posts for pagination types
+   - **End Message**: Custom message shown after lazy loading reaches the last page
    - **View More Button Text**: Customize the hover button text
 
 ### Category Toolbar
@@ -120,6 +121,7 @@ The main container includes data attributes for configuration:
 - `data-pagination-type` - Type of pagination
 - `data-posts-per-page` - Posts per page
 - `data-view-more-text` - Button text
+- `data-end-message` - Message displayed when lazy loading finishes
 
 ### Dependencies
 

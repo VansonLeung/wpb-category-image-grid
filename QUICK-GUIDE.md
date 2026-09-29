@@ -48,6 +48,7 @@ The Category Image Grid element displays posts from a single post type with cate
 | Gap Size | Space between items | 15px |
 | Pagination Type | How posts are loaded | load_top_n |
 | Posts Per Page | Number for pagination | 9 |
+| End Message | Message shown after lazy loading finishes | No more posts to load. |
 | View More Text | Button text on hover | View More |
 
 ## Multilingual Support
